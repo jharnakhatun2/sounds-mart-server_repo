@@ -21,12 +21,20 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const categoryCollection = client.db("soundsMart").collection("category");
+    const productCollection = client.db("soundsMart").collection("products");
 
-        // data load from mongodb
+        // category name load from db
         app.get("/category", async (req, res) => {
         const query = {};
         const categoryName = await categoryCollection.find(query).toArray();
         res.send(categoryName);
+        });
+
+        // product load from db
+        app.get("/products", async (req, res) => {
+        const query = {};
+        const products = await productCollection.find(query).toArray();
+        res.send(products);
         });
         
   } finally {
