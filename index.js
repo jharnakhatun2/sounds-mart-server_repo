@@ -19,11 +19,28 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+// middleware for verify jwt 
+function verifyJWT(req, res, next){
+  const authHeader = req.headers.authorization;
+  if(!authHeader){
+    return res.status(401).send('unauthorized access');
+  }
+  const token = authHeader.split(' ')[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN,function(err,decoded){
+    if(err){
+      return res.status(403).send({message: "forbidden access"})
+    }
+    req.decoded = decoded;
+    next();
+  })
+}
+
 async function run() {
   try {
     const categoryCollection = client.db("soundsMart").collection("category");
-    const userCollection = client.db("soundsMart").collection("user");
     const productCollection = client.db("soundsMart").collection("products");
+    const bookingsCollection = client.db("soundsMart").collection("booking");
+    const userCollection = client.db("soundsMart").collection("user");
 
         // category name load from db
         app.get("/category", async (req, res) => {
@@ -46,6 +63,24 @@ async function run() {
           res.send(product);
         })
 
+        app.get('/bookings',verifyJWT, async(req, res)=>{
+          const email = req.query.email;
+          const decodedEmail = req.decoded.email;
+          if(email !== decodedEmail){
+            return res.status(403).send({message: 'forbidden access'});
+          }
+          const query = {email: email};
+          const bookings = await bookingsCollection.find(query).toArray();
+          res.send(bookings);
+        })
+
+        app.post('/bookings', async(req, res)=>{
+          const booking = req.body;
+          console.log(booking);
+          const result = await bookingsCollection.insertOne(booking);
+          res.send(result);
+       });
+
         app.get('/jwt', async (req, res)=>{
           const email = req.query.email;
           const query = {email: email};
@@ -63,6 +98,8 @@ async function run() {
           const result = await userCollection.insertOne(user);
           res.send(result);
         })
+
+        
 
 
 
