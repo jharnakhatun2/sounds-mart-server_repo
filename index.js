@@ -1,7 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -21,6 +22,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const categoryCollection = client.db("soundsMart").collection("category");
+    const userCollection = client.db("soundsMart").collection("user");
     const productCollection = client.db("soundsMart").collection("products");
 
         // category name load from db
@@ -36,6 +38,34 @@ async function run() {
         const products = await productCollection.find(query).toArray();
         res.send(products);
         });
+
+        app.get('/products/:id', async(req,res)=>{
+          const id = req.params.id;
+          const query = { _id: ObjectId(id)};
+          const product = await productCollection.findOne(query);
+          res.send(product);
+        })
+
+        app.get('/jwt', async (req, res)=>{
+          const email = req.query.email;
+          const query = {email: email};
+          const user = await userCollection.findOne(query);
+          if(user){
+            const token = jwt.sign({email}, process.env.ACCESS_TOKEN, {expiresIn: '10h'});
+            return res.send({accessToken: token});
+          }
+          res.status(403).send({accessToken: ''});
+        })
+
+        app.post('/users', async (req, res)=>{
+          const user = req.body;
+          console.log(user);
+          const result = await userCollection.insertOne(user);
+          res.send(result);
+        })
+
+
+
         
   } finally {
   }
