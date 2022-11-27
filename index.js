@@ -10,6 +10,10 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+app.get("/", async (req, res) => {
+  res.send("welcome to Sounds Mart");
+});
+
 // mongodb
 const uri = `mongodb+srv://${process.env.SM_USER}:${process.env.SM_PASS}@cluster0.9b1wrmq.mongodb.net/?retryWrites=true&w=majority`;
 console.log(uri);
@@ -41,6 +45,8 @@ async function run() {
     const productCollection = client.db("soundsMart").collection("products");
     const bookingsCollection = client.db("soundsMart").collection("booking");
     const userCollection = client.db("soundsMart").collection("user");
+    const blogCollection = client.db("soundsMart").collection("blogs");
+    const sellerProductCollection = client.db("soundsMart").collection("sellerProducts");
 
         // category name load from db
         app.get("/category", async (req, res) => {
@@ -86,7 +92,7 @@ async function run() {
           const query = {email: email};
           const user = await userCollection.findOne(query);
           if(user){
-            const token = jwt.sign({email}, process.env.ACCESS_TOKEN, {expiresIn: '10h'});
+            const token = jwt.sign({email}, process.env.ACCESS_TOKEN, {expiresIn: "2 days"});
             return res.send({accessToken: token});
           }
           res.status(403).send({accessToken: ''});
@@ -98,29 +104,7 @@ async function run() {
           res.send(allUsers);
         });
 
-        // checked if user is admin
-        app.get('users/admin/:id', async (req, res)=>{
-          const id = req.params.id;
-          const query = { _id: ObjectId(id)};
-          const user = await userCollection.findOne(query);
-          res.send({isAdmin : user?.role === 'admin'});
-        });
-
-        // checked if user is seller
-        app.get('users/seller/:id', async (req, res)=>{
-          const id = req.params.id;
-          const query = { _id: ObjectId(id)};
-          const user = await userCollection.findOne(query);
-          res.send({isSeller : user?.users === 'seller'});
-        });
-
-        // checked if user is Buyer
-        app.get('users/buyer/:id', async (req, res)=>{
-          const id = req.params.id;
-          const query = { _id: ObjectId(id)};
-          const user = await userCollection.findOne(query);
-          res.send({isBuyer : user?.users === 'buyer'});
-        });
+        
 
         app.post('/users', async (req, res)=>{
           const user = req.body;
@@ -129,39 +113,91 @@ async function run() {
           res.send(result);
         });
 
-        // update user (create admin)
-        app.put('/users/admin/:id', verifyJWT, async(req, res)=>{
-          const decodedEmail = req.decoded.email;
-          const query = {email: decodedEmail};
-          const user = await userCollection.findOne(query);
-          if(user.role !== 'admin'){
-            return res.status(403).send({message: 'forbidden access'})
-          }
+        app.delete('/users', async (req, res)=>{
           const id = req.params.id;
-          const filter = {_id: ObjectId(id)}
-          const options = { upsert: true };
-          const updateDoc = {
-            $set:{
-              role: 'admin'
-            }
-          }
-          const result = await userCollection.updateOne(filter,updateDoc,options);
+          const filter = {_id: ObjectId(id)};
+          const result = await userCollection.deleteOne(filter);
           res.send(result);
+        })
+        
+        // admin ki na check kora
+        app.get('/users/admin/:email', async (req, res) => {
+          const email = req.params.email;
+          const query = {email}
+          const user = await userCollection.findOne(query);
+          res.send({isAdmin: user?.role === 'admin'});
         });
 
+        //check as if seller
+        app.get('users/seller/:email', async (req, res) => {
+          const email = req.params.email;
+          const query = {email}
+          const user = await userCollection.findOne(query);
+          res.send({isSeller : user?.users === 'seller'})
+        });
         
 
+                  // update user (create admin)
+          app.put('/users/admin/:id', verifyJWT, async(req, res)=>{
+            const decodedEmail = req.decoded.email;
+            const query = {email: decodedEmail};
+            const user = await userCollection.findOne(query);
+            if(user.role !== 'admin'){
+              return res.status(403).send({message: 'forbidden access'})
+            }
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)}
+            const options = { upsert: true };
+            const updateDoc = {
+              $set:{
+                role: 'admin'
+              }
+            }
+            const result = await userCollection.updateOne(filter,updateDoc,options);
+            res.send(result);
+          });
 
+          app.get('/sellerproduct', async (req, res) => {
+            const query = {};
+            const product = await sellerProductCollection.find(query).toArray();
+            res.send(product);
+          });
+
+          app.post('/sellerproduct', async (req, res)=>{
+            const product = req.body;
+            const result = await sellerProductCollection.insertOne(product);
+            res.send(result);
+          });
+
+          app.delete('/sellerproduct', async (req, res)=>{
+            const id = req.params.id;
+            const filter = {_id: ObjectId(id)};
+            const result = await sellerProductCollection.deleteOne(filter);
+            res.send(result);
+          });
+
+          app.get('/blogs', async (req, res) => {
+            const query = {};
+            const blogs = await blogCollection.find(query).toArray();
+            res.send(blogs);
+          });
+
+          app.get('/blogs/:id', async(req,res)=>{
+            const id = req.params.id;
+            const query = { _id: ObjectId(id)};
+            const blog = await blogCollection.findOne(query);
+            res.send(blog);
+          })
 
         
-  } finally {
+  } 
+  finally {
+
   }
 }
 run().catch(console.log);
 
-app.get("/", async (req, res) => {
-  res.send("welcome to Sounds Mart");
-});
+
 
 app.listen(port, () => {
   console.log(`Listening to port ${port}`);
