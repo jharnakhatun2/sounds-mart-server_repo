@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const app = express();
 const port = process.env.PORT || 5000;
 
@@ -47,6 +48,7 @@ async function run() {
     const userCollection = client.db("soundsMart").collection("user");
     const blogCollection = client.db("soundsMart").collection("blogs");
     const sellerProductCollection = client.db("soundsMart").collection("sellerProducts");
+    const paymentsCollection = client.db("soundsMart").collection("payments");
 
         // category name load from db
         app.get("/category", async (req, res) => {
@@ -78,7 +80,14 @@ async function run() {
           const query = {email: email};
           const bookings = await bookingsCollection.find(query).toArray();
           res.send(bookings);
-        })
+        });
+
+        app.get('/bookings/:id', async(req,res)=>{
+          const id = req.params.id;
+          const query = { _id: ObjectId(id)};
+          const paybooking = await bookingsCollection.findOne(query);
+          res.send(paybooking);
+        });
 
         app.post('/bookings', async(req, res)=>{
           const booking = req.body;
@@ -86,6 +95,42 @@ async function run() {
           const result = await bookingsCollection.insertOne(booking);
           res.send(result);
        });
+
+      //  Stripe payment
+      app.post("/create-payment-intent", async (req, res) => {
+        const booking = req.body;
+        const price = booking.price;
+        const amount = price * 100;
+      
+        // Create a PaymentIntent with the order amount and currency
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: amount,
+          currency: "usd",
+          "payment_method_types": [
+            "card"
+          ]
+        });
+      
+        res.send({
+          clientSecret: paymentIntent.client_secret,
+        });
+      });
+
+        // save payment collections in db
+        app.post('/payments', async (req, res)=>{
+          const payment = req.body;
+          const result = await paymentsCollection.insertOne(payment);
+          const id = payment.bookingId;
+          const filter = { _id: ObjectId(id)}
+          const updateDoc = {
+            $set: {
+              paid: true,
+              transactionId: payment.transactionId
+            }
+          }
+          const updateResult = await bookingsCollection.updateOne(filter,updateDoc);
+          res.send(result);
+        })
 
         app.get('/jwt', async (req, res)=>{
           const email = req.query.email;
@@ -103,8 +148,6 @@ async function run() {
           const allUsers = await userCollection.find(query).toArray();
           res.send(allUsers);
         });
-
-        
 
         app.post('/users', async (req, res)=>{
           const user = req.body;
@@ -187,7 +230,7 @@ async function run() {
             const query = { _id: ObjectId(id)};
             const blog = await blogCollection.findOne(query);
             res.send(blog);
-          })
+          });
 
         
   } 
