@@ -156,12 +156,12 @@ async function run() {
           res.send(result);
         });
 
-        app.delete('/users', async (req, res)=>{
+        app.delete('/users/:id', async (req, res)=>{
           const id = req.params.id;
           const filter = {_id: ObjectId(id)};
           const result = await userCollection.deleteOne(filter);
           res.send(result);
-        })
+        });
         
         // admin ki na check kora
         app.get('/users/admin/:email', async (req, res) => {
@@ -179,8 +179,15 @@ async function run() {
           res.send({isSeller : user?.users === 'seller'})
         });
         
-
-                  // update user (create admin)
+        //check as if buyer
+        app.get('users/buyer/:email', async (req, res) => {
+          const email = req.params.email;
+          const query = {email}
+          const user = await userCollection.findOne(query);
+          res.send({isBuyer : user?.users === 'buyer'})
+        });
+        
+          // update user (create admin)
           app.put('/users/admin/:id', verifyJWT, async(req, res)=>{
             const decodedEmail = req.decoded.email;
             const query = {email: decodedEmail};
@@ -212,7 +219,7 @@ async function run() {
             res.send(result);
           });
 
-          app.delete('/sellerproduct', async (req, res)=>{
+          app.delete('/sellerproduct/:id', async (req, res)=>{
             const id = req.params.id;
             const filter = {_id: ObjectId(id)};
             const result = await sellerProductCollection.deleteOne(filter);
