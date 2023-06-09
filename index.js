@@ -48,6 +48,7 @@ async function run() {
     const userCollection = client.db("soundsMart").collection("user");
     const blogCollection = client.db("soundsMart").collection("blogs");
     const sellerProductCollection = client.db("soundsMart").collection("sellerProducts");
+    const headphoneCollection = client.db("soundsMart").collection("headphoneProducts");
     const paymentsCollection = client.db("soundsMart").collection("payments");
 
         // category name load from db
@@ -237,6 +238,20 @@ async function run() {
             const query = { _id: ObjectId(id)};
             const blog = await blogCollection.findOne(query);
             res.send(blog);
+          });
+
+          // headphone product api create
+          app.get('/headphone', async (req, res) => {
+            const query = {};
+            const headphones = await headphoneCollection.find(query).toArray();
+            res.send(headphones);
+          });
+
+          app.get('/headphone/:id', async(req,res)=>{
+            const id = req.params.id;
+            const query = { _id: ObjectId(id)};
+            const headphone = await headphoneCollection.findOne(query);
+            res.send(headphone);
           });
 
         
